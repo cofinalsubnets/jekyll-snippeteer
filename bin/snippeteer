@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+
+require 'snippeteer'
+require 'commander/import'
+
+program :version, Snippeteer::VERSION
+program :description, 'Code snippet extractor for Jekyll posts.'
+
+default_scanners = [Snippeteer::LiquidHighlightScanner]
+
+global_option '--load CONFIGS', Array, "Load CONFIGS before executing." do |configs|
+  configs.each {|cfg| load cfg}
+end
+
+command :snip do |c|
+  c.syntax = 'snippeteer snip [FILES ...]'
+  c.description = 'Extract snippets from files.'
+  c.action do |files, options|
+    files.each do |f|
+      Snippeteer::Writer.new(f, default_scanners).write_sources.values.each do |fn|
+        puts "wrote #{fn}"
+      end
+    end
+  end
+end
+
+command :run do |c|
+  c.syntax = 'snippeteer run [FILES ...]'
+  c.description = 'Run snippets from files'
+  c.option '--noclean', "Don't remove source files after running them."
+  c.action do |files, opts|
+    run, ok = [], true
+    files.each do |f|
+      puts opts.no_clean
+      run += Snippeteer::Writer.new(f, default_scanners).run_sources(!opts.noclean)
+    end
+    run.each do |filename, ran_ok|
+      if not ran_ok
+        $stderr.puts "# warning: execution of #{filename} finished with non-zero exit status"
+        ok = false
+      end
+    end
+    exit 1 if not ok
+  end
+end
+
